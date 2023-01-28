@@ -50,15 +50,19 @@ PERFORMERS = [
   'GiaRiz',
   'ManPie',
   'SteDam',
+  'LucCen',
+  'EnrBis',
+  'FraOre',
 ]
 
 
 class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
   """DatasetBuilder for piano_emotion_recognition dataset."""
 
-  VERSION = tfds.core.Version('0.0.1')
+  VERSION = tfds.core.Version('0.0.2')
   RELEASE_NOTES = {
       '0.0.1': 'Initial release.',
+      '0.0.2': 'Add three more performers.',
   }
   MANUAL_DOWNLOAD_INSTRUCTIONS = """
   Dowload data manually
@@ -96,31 +100,32 @@ class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
 
     return {
       'fold1': chain(
-        self._generate_examples(base_dir, rows, 1, 31),
-        self._generate_examples(base_dir, rows, 191, 203),
-        self._generate_examples(base_dir, rows, 227, 239),
+        self._generate_examples(base_dir, rows, 1, 13),
+        self._generate_examples(base_dir, rows, 56, 68),
+        self._generate_examples(base_dir, rows, 203, 215),
+        self._generate_examples(base_dir, rows, 239, 251),
+        self._generate_examples(base_dir, rows, 263, 275),
       ),
       'fold2': chain(
-        self._generate_examples(base_dir, rows, 31, 43),
-        self._generate_examples(base_dir, rows, 100, 119),
-        self._generate_examples(base_dir, rows, 167, 179),
+        self._generate_examples(base_dir, rows, 13, 43),
+        self._generate_examples(base_dir, rows, 131, 155),
       ),
       'fold3': chain(
         self._generate_examples(base_dir, rows, 43, 56),
         self._generate_examples(base_dir, rows, 86, 100),
-        self._generate_examples(base_dir, rows, 143, 155),
-        self._generate_examples(base_dir, rows, 179, 191),
-      ),
-      'fold4': chain(
-        self._generate_examples(base_dir, rows, 56, 68),
-        self._generate_examples(base_dir, rows, 131, 143),
-        self._generate_examples(base_dir, rows, 155, 167),
-        self._generate_examples(base_dir, rows, 203, 215),
-      ),
-      'fold5': chain(
-        self._generate_examples(base_dir, rows, 68, 86),
         self._generate_examples(base_dir, rows, 119, 131),
         self._generate_examples(base_dir, rows, 215, 227),
+      ),
+      'fold4': chain(
+        self._generate_examples(base_dir, rows, 68, 86),
+        self._generate_examples(base_dir, rows, 155, 179),
+        self._generate_examples(base_dir, rows, 191, 203),
+      ),
+      'fold5': chain(
+        self._generate_examples(base_dir, rows, 100, 119),
+        self._generate_examples(base_dir, rows, 179, 191),
+        self._generate_examples(base_dir, rows, 227, 239),
+        self._generate_examples(base_dir, rows, 251, 263),
       ),
     }
 
