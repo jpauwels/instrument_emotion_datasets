@@ -21,17 +21,6 @@ It should also contain any processing which has been applied (if any),
 _CITATION = """
 """
 
-EMOTIONS = [
-  'aggressive',
-  'relaxed',
-  'happy',
-  'sad',
-]
-
-INSTRUMENT_TYPES = [
-  'piano',
-]
-
 PERFORMERS = [
   'BenGul',
   'LucTie',
@@ -55,15 +44,32 @@ PERFORMERS = [
   'FraOre',
 ]
 
+INSTRUMENT_TYPES = [
+  'piano',
+]
+
+EMOTIONS = [
+  'aggressive',
+  'relaxed',
+  'happy',
+  'sad',
+]
+
+EMOTIONAL_INTENSITIES = [
+  '1',
+  '2',
+  '3',
+]
 
 class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
   """DatasetBuilder for piano_emotion_recognition dataset."""
 
-  VERSION = tfds.core.Version('0.0.3')
+  VERSION = tfds.core.Version('0.4.0')
   RELEASE_NOTES = {
-      '0.0.1': 'Initial release.',
-      '0.0.2': 'Add three more performers.',
-      '0.0.3': 'Take file duration into account instead of simply the number of files when grouping performers into splits.',
+      '0.1.0': 'Initial release.',
+      '0.2.0': 'Add three more performers.',
+      '0.3.0': 'Take file duration into account instead of simply the number of files when grouping performers into splits.',
+      '0.4.0': 'Add emotional intensity as feature',
   }
   MANUAL_DOWNLOAD_INSTRUCTIONS = """
   Dowload data manually
@@ -76,9 +82,10 @@ class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
         description=_DESCRIPTION,
         features=tfds.features.FeaturesDict({
             'audio': AudioFeature(force_sample_rate=16000, force_channels='mono', dtype=tf.float32, normalize=True),
-            'emotion': tfds.features.ClassLabel(names=EMOTIONS),
-            'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
             'performer': tfds.features.ClassLabel(names=PERFORMERS),
+            'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
+            'emotion': tfds.features.ClassLabel(names=EMOTIONS),
+            'emotional_intensity': tfds.features.ClassLabel(names=EMOTIONAL_INTENSITIES),
         }),
         supervised_keys=('audio', 'emotion'),
         homepage='https://www.cimil.disi.unitn.it/',
@@ -89,7 +96,7 @@ class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
     """Returns SplitGenerators."""
     # TODO(piano_emotion_recognition): Downloads the data and defines the splits
     # path = dl_manager.download_and_extract('https://todo-data-url')
-    zip_path = dl_manager.manual_dir / f'piano_emotion_dataset-v{self.VERSION}.zip'
+    zip_path = dl_manager.manual_dir / f'piano-emotion-dataset-v{self.VERSION}.zip'
     if not zip_path.exists():
       raise AssertionError(
         'Cannot find {}, manual download required'.format(zip_path)
@@ -133,8 +140,8 @@ class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
   def _generate_examples(self, base_dir, metadata_rows, start_id, end_id):
     """Yields examples."""
     for row in metadata_rows:
-      file_id = int(row['file_name'].split('_')[0])
+      file_id = int(row['file_id'])
       if file_id >= start_id and file_id < end_id:
-        full_path = base_dir / row['emotion'] / row['file_name']
-        example = {'audio': full_path, 'emotion': row['emotion'], 'instrument_type': row['instrument'], 'performer': row['musician_pseudonym']}
+        full_path = base_dir / row['emotion'] / (row['file_name'] + '.wav')
+        example = {'audio': full_path, 'performer': row['performer'], 'instrument_type': row['instrument'], 'emotion': row['emotion'], 'emotional_intensity': row['emotional_intensity']}
         yield file_id, example

@@ -17,21 +17,19 @@ It should also contain any processing which has been applied (if any),
 (e.g. corrupted example skipped, images cropped,...):
 """
 
-# TODO(acoustic_guitar_emotion_recognition): BibTeX citation
 _CITATION = """
+@Article{acoustic_guitar_emotion_dataset,
+  author       = {Turchet, Luca and Pauwels, Johan},
+  year         = {2022},
+  journaltitle = {IEEE/ACM Transactions on Audio, Speech, and Language Processing},
+  title        = {Music Emotion Recognition: Intention of Composers-Performers Versus Perception of Musicians, Non-Musicians, and Listening Machines},
+  doi          = {10.1109/taslp.2021.3138709},
+  pages        = {305--316},
+  volume       = {30},
+  issn         = {2329-9304},
+  publisher    = {Institute of Electrical and Electronics Engineers ({IEEE})},,
+}
 """
-
-EMOTIONS = [
-  'aggressive',
-  'relaxed',
-  'happy',
-  'sad',
-]
-
-INSTRUMENT_TYPES = [
-  'steelstring_guitar',
-  'classical_guitar',
-]
 
 PERFORMERS = [
   'LucTur',
@@ -66,22 +64,54 @@ PERFORMERS = [
   'MarPia',
 ]
 
-PLAYING_STYLES = [
-    'fingers',
-    'fingers_and_harmonics',
-    'pick',
-    'pick_and_fingers',
-    'pick+hammeron',
+INSTRUMENT_TYPES = [
+  'classical-guitar',
+  'steelstring-guitar',
 ]
 
+EMOTIONS = [
+  'aggressive',
+  'relaxed',
+  'happy',
+  'sad',
+]
+
+EMOTIONAL_INTENSITIES = [
+  '1',
+  '2',
+  '3',
+]
+
+PLAYING_TECHNIQUES = [
+    'fingers',
+    'fingers+harmonics',
+    'pick',
+    'pick+fingers',
+    'pick+hammeron',
+    'pick+tapping',
+]
+
+MICROPHONE_TYPES = [
+  'condenser',
+  'condenser+piezo',
+  'piezo',
+  'piezo+external-condenser'
+]
+
+MICROPHONE_POSITIONS = [
+  'external',
+  'internal',
+  'internal+external',
+]
 
 class AcousticGuitarEmotionRecognition(tfds.core.GeneratorBasedBuilder):
   """DatasetBuilder for acoustic_guitar_emotion_recognition dataset."""
 
-  VERSION = tfds.core.Version('0.5.0')
+  VERSION = tfds.core.Version('0.6.0')
   RELEASE_NOTES = {
       '0.4.0': 'Initial public release.',
       '0.5.0': 'Take file duration into account instead of simply the number of files when grouping performers into splits.',
+      '0.6.0': 'Add emotional intensity, microphone type and position as features',
   }
   MANUAL_DOWNLOAD_INSTRUCTIONS = """
   Dowload data manually
@@ -94,10 +124,13 @@ class AcousticGuitarEmotionRecognition(tfds.core.GeneratorBasedBuilder):
         description=_DESCRIPTION,
         features=tfds.features.FeaturesDict({
             'audio': AudioFeature(force_sample_rate=16000, force_channels='mono', dtype=tf.float32, normalize=True),
-            'emotion': tfds.features.ClassLabel(names=EMOTIONS),
-            'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
             'performer': tfds.features.ClassLabel(names=PERFORMERS),
-            'playing_style': tfds.features.ClassLabel(names=PLAYING_STYLES),
+            'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
+            'emotion': tfds.features.ClassLabel(names=EMOTIONS),
+            'emotional_intensity': tfds.features.ClassLabel(names=EMOTIONAL_INTENSITIES),
+            'playing_technique': tfds.features.ClassLabel(names=PLAYING_TECHNIQUES),
+            'microphone_type': tfds.features.ClassLabel(names=MICROPHONE_TYPES),
+            'microphone_position': tfds.features.ClassLabel(names=MICROPHONE_POSITIONS),
         }),
         supervised_keys=('audio', 'emotion'),
         homepage='https://www.cimil.disi.unitn.it/',
@@ -108,14 +141,14 @@ class AcousticGuitarEmotionRecognition(tfds.core.GeneratorBasedBuilder):
     """Returns SplitGenerators."""
     # TODO(acoustic_guitar_emotion_recognition): Downloads the data and defines the splits
     # path = dl_manager.download_and_extract('https://todo-data-url')
-    zip_path = dl_manager.manual_dir / f'acoustic_guitar_emotion_dataset-v{self.VERSION}.zip'
+    zip_path = dl_manager.manual_dir / f'acoustic-guitar-emotion-dataset-v{self.VERSION}.zip'
     if not zip_path.exists():
       raise AssertionError(
         'Cannot find {}, manual download required'.format(zip_path)
       )
     extract_path = dl_manager.extract(zip_path)
-    base_dir = extract_path / 'emotional_guitar_dataset'
-    with tf.io.gfile.GFile(base_dir / 'annotations_emotional_guitar_dataset.csv') as f:
+    base_dir = extract_path / 'acoustic-guitar'
+    with tf.io.gfile.GFile(base_dir / 'annotations_acoustic-guitar.csv') as f:
       rows = [row for row in csv.DictReader(f)]
 
     return {
@@ -158,5 +191,6 @@ class AcousticGuitarEmotionRecognition(tfds.core.GeneratorBasedBuilder):
     for row in metadata_rows:
       file_id = int(row['file_id'])
       if file_id >= start_id and file_id < end_id:
-        example = {'audio': base_dir / row['file_name'], 'emotion': row['emotion'], 'instrument_type': row['instrument'], 'performer': row['composer_pseudonym'], 'playing_style': row['pick/fingers']}
+        full_path = base_dir / row['emotion'] / (row['file_name'] + '.wav')
+        example = {'audio': full_path, 'performer': row['performer'], 'instrument_type': row['instrument'], 'emotion': row['emotion'], 'emotional_intensity': row['emotional_intensity'], 'playing_technique': row['playing_technique'], 'microphone_type': row['microphone_type'], 'microphone_position': row['microphone_position']}
         yield file_id, example
