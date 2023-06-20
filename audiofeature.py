@@ -1,6 +1,14 @@
+from typing import BinaryIO, Optional, Union
+
 from tensorflow_datasets.core import lazy_imports_lib
-import tensorflow_datasets as tfds
+from tensorflow_datasets.core import utils
+from tensorflow_datasets.core.features import feature as feature_lib
+from tensorflow_datasets.core.features import tensor_feature
+from tensorflow_datasets.core.features.audio_feature import Audio
+from tensorflow_datasets.core.utils import type_utils
 import numpy as np
+
+Encoding = tensor_feature.Encoding
 
 
 def samples_as_dtype(np_array, np_dtype):
@@ -36,18 +44,46 @@ def mix_to_mono(audio_segments):
   return mix_next_segment(segments[0], segments[1:])
 
 
-class AudioFeature(tfds.features.Audio):
-  def __init__(self, file_format=None, force_sample_rate=None, force_channels=None, force_samples=None, dtype=None, normalize=False):
+class AudioFeature(Audio):
+  def __init__(
+    self,
+    *,
+    file_format: Optional[str] = None,
+    shape: utils.Shape = (None,),
+    dtype: type_utils.TfdsDType = np.int64,
+    force_sample_rate: Optional[int] = None,
+    encoding: Union[str, Encoding] = Encoding.NONE,
+    doc: feature_lib.DocArg = None,
+    lazy_decode: bool = False,
+    force_channels: Optional[int] = None,
+    normalize: bool = False,
+  ):
     self._normalize = normalize
-    channels = 1 if isinstance(force_channels, str) else force_channels
-    super().__init__(file_format=file_format, shape=(force_samples, channels), dtype=dtype, sample_rate=force_sample_rate)
+    if isinstance(force_channels, str) or force_channels is None or force_channels == 1:
+      shape = (shape[0],)
+    else:
+      shape = (shape[0], force_channels)
+    super().__init__(
+      file_format=file_format,
+      shape=shape,
+      dtype=dtype,
+      sample_rate=force_sample_rate,
+      encoding=encoding,
+      doc=doc,
+      lazy_decode=lazy_decode,
+    )
+    if not lazy_decode:
+      self._audio_decoder.encode_audio = self._eager_encode_audio
 
-  def _encode_file(self, fobj, file_format):
+  def _eager_encode_audio(
+    self, fobj: BinaryIO, file_format: Optional[str]
+  ) -> np.ndarray:
     audio_segment = lazy_imports_lib.lazy_imports.pydub.AudioSegment.from_file(fobj, format=file_format)
     channels = audio_segment.channels
 
     force_sample_rate = self._sample_rate
-    force_samples, force_channels = self._shape
+    force_samples = self._shape[0]
+    force_channels = self._audio_decoder._channels
 
     if force_channels == 'first':
       audio_segment = audio_segment.split_to_mono()[0]
@@ -74,9 +110,8 @@ class AudioFeature(tfds.features.Audio):
       audio_segment = audio_segment.remove_dc_offset().normalize()
     samples = np.array([s.get_array_of_samples() for s in audio_segment.split_to_mono()]).T
     if self._dtype:
-        np_dtype = np.dtype(self._dtype.as_numpy_dtype)
-        samples = samples_as_dtype(samples, np_dtype)
+      samples = samples_as_dtype(samples, self._dtype)
     if isinstance(force_channels, int) and force_channels > channels:
       # repeat channels until requested number of channels reached
       samples = np.pad(samples, ((0, 0), (0, force_channels - channels)), mode='wrap')
-    return samples
+    return np.squeeze(samples)

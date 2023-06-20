@@ -1,7 +1,7 @@
 """acoustic_guitar_emotion_recognition dataset."""
 
 import tensorflow_datasets as tfds
-import tensorflow.compat.v2 as tf
+import numpy as np
 import sys
 from etils import epath
 sys.path.append(str(epath.Path(__file__).parent.parent.resolve()))
@@ -123,7 +123,7 @@ class AcousticGuitarEmotionRecognition(tfds.core.GeneratorBasedBuilder):
         builder=self,
         description=_DESCRIPTION,
         features=tfds.features.FeaturesDict({
-            'audio': AudioFeature(force_sample_rate=16000, force_channels='mono', dtype=tf.float32, normalize=True),
+            'audio': AudioFeature(force_sample_rate=16000, force_channels='mono', dtype=np.float32, normalize=True),
             'performer': tfds.features.ClassLabel(names=PERFORMERS),
             'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
             'emotion': tfds.features.ClassLabel(names=EMOTIONS),
@@ -148,7 +148,7 @@ class AcousticGuitarEmotionRecognition(tfds.core.GeneratorBasedBuilder):
       )
     extract_path = dl_manager.extract(zip_path)
     base_dir = extract_path / 'acoustic-guitar'
-    with tf.io.gfile.GFile(base_dir / 'annotations_acoustic-guitar.csv') as f:
+    with (base_dir / 'annotations_acoustic-guitar.csv').open() as f:
       rows = [row for row in csv.DictReader(f)]
 
     return {
