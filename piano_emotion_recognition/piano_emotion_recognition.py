@@ -5,7 +5,7 @@ import numpy as np
 import sys
 from etils import epath
 sys.path.append(str(epath.Path(__file__).parent.parent.resolve()))
-from audiofeature import AudioFeature
+from audiofeature import AudioFeature, MelSpectrogram
 import csv
 from itertools import chain
 
@@ -77,20 +77,35 @@ class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
   MANUAL_DOWNLOAD_INSTRUCTIONS = """
   Dowload data manually
   """
+  BUILDER_CONFIGS = [
+    tfds.core.BuilderConfig(
+        name='audio',
+        description='Normalized audio representation as float32 in [-1,1], resampled to 16kHz and mixed to mono.',
+    ),
+    tfds.core.BuilderConfig(
+        name='melspectrogram',
+        description='Melspectrogram with 96 bands, 512 samples per frame and a step size of 256, computed from a 16kHz, mono waveform.',
+    ),
+  ]
+
 
   def _info(self) -> tfds.core.DatasetInfo:
     """Returns the dataset metadata."""
+    features = {
+      'performer': tfds.features.ClassLabel(names=PERFORMERS),
+      'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
+      'emotion': tfds.features.ClassLabel(names=EMOTIONS),
+      'emotional_intensity': tfds.features.ClassLabel(names=EMOTIONAL_INTENSITIES),
+    }
+    if self.builder_config.name == 'audio':
+      features['audio'] = AudioFeature(force_sample_rate=16000, force_channels='mono', dtype=np.float32, normalize=True)
+    elif self.builder_config.name == 'melspectrogram':
+      features['melspectrogram'] = MelSpectrogram(window_size=512, step_size=256, mel_bands=96, force_sample_rate=16000, force_channels='mono', normalize=True)
     return tfds.core.DatasetInfo(
         builder=self,
         description=_DESCRIPTION,
-        features=tfds.features.FeaturesDict({
-            'audio': AudioFeature(force_sample_rate=16000, force_channels='mono', dtype=np.float32, normalize=True),
-            'performer': tfds.features.ClassLabel(names=PERFORMERS),
-            'instrument_type': tfds.features.ClassLabel(names=INSTRUMENT_TYPES),
-            'emotion': tfds.features.ClassLabel(names=EMOTIONS),
-            'emotional_intensity': tfds.features.ClassLabel(names=EMOTIONAL_INTENSITIES),
-        }),
-        supervised_keys=('audio', 'emotion'),
+        features=tfds.features.FeaturesDict(features),
+        supervised_keys=(self.builder_config.name, 'emotion'),
         homepage='https://www.cimil.disi.unitn.it/',
         citation=_CITATION,
     )
@@ -147,5 +162,5 @@ class PianoEmotionRecognition(tfds.core.GeneratorBasedBuilder):
       file_id = int(row['file_id'])
       if file_id >= start_id and file_id < end_id:
         full_path = base_dir / row['emotion'] / (row['file_name'] + '.wav')
-        example = {'audio': full_path, 'performer': row['performer'], 'instrument_type': row['instrument'], 'emotion': row['emotion'], 'emotional_intensity': row['emotional_intensity']}
+        example = {self.builder_config.name: full_path, 'performer': row['performer'], 'instrument_type': row['instrument'], 'emotion': row['emotion'], 'emotional_intensity': row['emotional_intensity']}
         yield file_id, example

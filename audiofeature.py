@@ -115,3 +115,41 @@ class AudioFeature(Audio):
       # repeat channels until requested number of channels reached
       samples = np.pad(samples, ((0, 0), (0, force_channels - channels)), mode='wrap')
     return np.squeeze(samples)
+
+
+class MelSpectrogram(tensor_feature.Tensor):
+  def __init__(
+    self,
+    *,
+    window_size,
+    step_size,
+    mel_bands,
+    fmin: float = 0,
+    fmax: Optional[float] = None,
+    fft_size: Optional[int] = None,
+    db_range: int = 80,
+    force_sample_rate: Optional[int] = None,
+    force_channels: Optional[int] = None,
+    normalize: bool = False,
+    file_format: Optional[str] = None,
+    dtype: type_utils.TfdsDType = np.float32,
+    encoding: Union[str, Encoding] = Encoding.NONE,
+    doc: feature_lib.DocArg = None,
+  ):
+    self._audio = AudioFeature(file_format=file_format, dtype=dtype, force_sample_rate=force_sample_rate, force_channels=force_channels, normalize=normalize, lazy_decode=False)
+    self._fft_size = window_size if fft_size is None else fft_size
+    self._window_size = window_size
+    self._step_size = step_size
+    self._mel_bands = mel_bands
+    self._fmin = fmin
+    self._fmax = self._audio._sample_rate/2 if fmax is None else fmax
+    self._db_range = db_range
+    super().__init__(shape=(mel_bands, None), dtype=dtype, encoding=encoding, doc=doc)
+
+
+  def encode_example(self, example_data):
+    audio = self._audio.encode_example(example_data)
+    spectrogram = lazy_imports_lib.lazy_imports.tensorflow_io.audio.spectrogram(audio, self._fft_size, self._window_size, self._step_size, name='spectrogram')
+    melspectrogram = lazy_imports_lib.lazy_imports.tensorflow_io.audio.melscale(spectrogram, self._audio._sample_rate, self._mel_bands, self._fmin, self._fmax, name='melscale')
+    melspectrogram_db = lazy_imports_lib.lazy_imports.tensorflow_io.audio.dbscale(melspectrogram, self._db_range, name='dbscale')
+    return super().encode_example(np.array(melspectrogram_db).T)
